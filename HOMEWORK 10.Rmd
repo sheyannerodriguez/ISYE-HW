@@ -1,0 +1,212 @@
+---
+title: "Homework 10"
+author: "Anonymous"
+date: "2024-03-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Question 14.1
+
+*The breast cancer data set 'breast-cancer-wisconsin.data.txt' has missing values.*
+
+1.  *Use the mean/mode imputation method to impute values for the missing data.*
+2.  *Use regression to impute the values for the missing data.*
+3.  *Use regression with perturbation to impute values for the missing data.*
+4.  *(Optional) Compare the results and quality of the classification models (e.g., SVM, KNN) build using*
+    1.  *the data sets from questions 1-3*
+    2.  *the data that remains after data points with missing values are removed*
+    3.  *the data set when a binary variable is introduced to indicate missing values*
+
+### Answer 14.1.1 Mean/Mode Imputation Method
+
+```{r}
+library(tidyverse)
+cancer_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\breast-cancer-wisconsin.data.txt", 
+                          header = TRUE, 
+                          sep = ",", 
+                          stringsAsFactors = FALSE, 
+                          na.strings = "?")
+
+head(cancer_data, 4)
+
+#Give column names
+colnames(cancer_data) <- c("ID", "Clump_Thickness", "Cell_Size",
+                           "Cell_Shape", "Marginal_Adhesion",
+                           "Single_Epith_Cell_Size", "Bare_Nuclei",
+                           "Bland_Chromatin", "Normal_Nucleoli",
+                           "Mitoses", "Class")
+cancer_data$Class <- as.factor(cancer_data$Class)
+levels(cancer_data$Class) <- c(0,1)
+#Summary
+summary(cancer_data)
+
+#Find missing data
+cancer_data[is.na(cancer_data$Bare_Nuclei),]
+
+#Check for the percentage of missing data with the Rule of Thumb >5% of all data
+print(16/nrow(cancer_data)*100)
+#The missing data is nearly 2.3% of the total data which is lower than 5%
+
+#After identifying the missing data, We can move onto the mean/mode imputation method
+
+#14.1.1 Using mean/mode imputation method 
+#Run mean without NA values
+Mean <- round(mean(as.integer(cancer_data$Bare_Nuclei), na.rm = TRUE))
+Mean
+
+#Replace the missing data with the Mean
+New_Mean <- cancer_data
+New_Mean[is.na(New_Mean)] <- Mean
+New_Mean[c(23,40,139,145),]
+
+#Using mode imputation
+
+calc_mode <- function(x){
+  u <- unique(x)
+  tab <- tabulate(match(x,u))
+  u[which.max(tab)]
+}
+d <- cancer_data$Bare_Nuclei
+calc_mode(d)
+
+#Below is inputting the mode into the Bare Nuclei column
+#I did not show the entire column for simplicity visuals.
+#df <- data.frame(cancer_data$Bare_Nuclei)
+#df %>%
+#  mutate(cancer_data.Bare_Nuclei = if_else(is.na(cancer_data.Bare_Nuclei),
+#                                          calc_mode(d)),
+#                                          cancer_data.Bare_Nuclei))
+
+```
+
+### Conclusion:
+
+In my findings above, I was able to find which column in the Breast Cancer data that contained missing data which was named Bare Nuclei. Furthermore, I checked the percentage of missing data to see if the missing data was within the 5% of all data to continue (as rule of thumb).
+
+Next, I was able to use the Mean imputation method to calculate the mean and also replace the NA's with the mean for four rows (for simplicity visuals).
+
+I then used the Mode imputation method and replaced the NA's for the Bare Nuclei column as well. However, I did not run the code considering it showed the entire row and for simplicity, I decided to hash-tag it out.
+
+### Question 14.1.2 Regression Imputation Method
+
+```{r}
+library(tidyverse)
+library(caret)
+cancer_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\breast-cancer-wisconsin.data.txt", 
+                          header = TRUE, sep = ",", 
+                          stringsAsFactors = FALSE, 
+                          na.strings = "?")
+
+#Give column names
+colnames(cancer_data) <- c("ID", "Clump_Thickness", "Cell_Size",
+                           "Cell_Shape", "Marginal_Adhesion",
+                           "Single_Epith_Cell_Size", "Bare_Nuclei",
+                           "Bland_Chromatin", "Normal_Nucleoli",
+                           "Mitoses", "Class")
+#All other predictors data points except for the mising values & response variable
+New_cancer <- cancer_data
+missing.index <- which(is.na(New_cancer$Bare_Nuclei), arr.ind = TRUE)
+New_cancer.2 <- New_cancer[-missing.index, 2:10]
+
+#Split data into 70% training and 30% testing
+set.seed(123)
+random <- sample(2, nrow(New_cancer.2), replace = TRUE, prob = c(0.7,0.3))
+c.train <- New_cancer.2[random == 1,]
+c.test <- New_cancer.2[random == 2,]
+
+#Regression
+R.Model <- lm(formula = Bare_Nuclei~
+                Clump_Thickness+
+                Cell_Size+
+                Cell_Shape+
+                Marginal_Adhesion+
+                Single_Epith_Cell_Size+
+                Bland_Chromatin+
+                Normal_Nucleoli+
+                Mitoses, data = c.train, na.action = na.exclude)
+summary(R.Model)
+
+#From the summary, the significant values will generate a new model
+R2.Model <- lm(formula = Bare_Nuclei~
+                 Clump_Thickness+
+                 Cell_Shape+
+                 Marginal_Adhesion+
+                 Bland_Chromatin, data = c.train)
+summary(R2.Model)
+
+#Cross Validation Prediction
+pred.Cmodel <-R2.Model
+C.trainControl <- trainControl(method = "cv", number = 10)
+pred.Cmodel.2 <- train(Bare_Nuclei~
+                         Clump_Thickness+
+                         Cell_Shape+
+                         Marginal_Adhesion+
+                         Bland_Chromatin, c.train, method = 'lm',
+                       trControl = C.trainControl)
+summary(pred.Cmodel.2)
+
+#The results of the cross validation has the same value as the second traing model.
+#I will do the prediction of the second model and run R^2
+pred.train <- predict(pred.Cmodel.2, c.train)
+SSE.train <- sum((pred.train - c.train[,7])^2)
+SST.train <- sum((c.train[,7] - mean(c.train[,7]))^2)
+R2.train <- 1 - SSE.train / SST.train
+R2.train
+#The R2 of the training model is 64%, the performance is good.
+
+#Testing data for regression
+pred.test <- predict(pred.Cmodel.2, c.test)
+SSE.test <- sum((pred.test - c.test[,7])^2)
+SST.test <- sum((c.test[,7] - mean(c.test[,7]))^2)
+R2.test <- 1 - SSE.test / SST.test
+R2.test
+#The R2 of the testing model is 72%, this is slightly better than the training model.
+
+#Predicting the missing values
+regression <- cancer_data
+pred.missing <- predict(pred.Cmodel.2, New_cancer[missing.index,])
+regression[missing.index,]$Bare_Nuclei <- as.integer(pred.missing)
+regression[c(23,40,139,145),]
+```
+
+### Conclusion:
+
+In my findings using Regression, the first model showed 'Clump_Thickness', 'Cell Shape', 'Marginal Adhesion', and 'Bland Chromatin' were significant therefore, I used them to create a new model. From that model, the R^2^ was at 61% which led me to cross validation. After cross validation, the summary revealed an R^2^ fo 61% as well. Therefore, I used that model for prediction. The result came to 64% on the training set and 72% on the testing set. The testing set was slightly better than the training set. Finally, I predicted the missing values which are shown above.
+
+### Question 14.1.3 Using regression with perturbation
+
+```{r}
+
+cancer_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\breast-cancer-wisconsin.data.txt", 
+                          header = TRUE, sep = ",", 
+                          stringsAsFactors = FALSE, 
+                          na.strings = "?")
+
+#Give column names
+colnames(cancer_data) <- c("ID", "Clump_Thickness", "Cell_Size",
+                           "Cell_Shape", "Marginal_Adhesion",
+                           "Single_Epith_Cell_Size", "Bare_Nuclei",
+                           "Bland_Chromatin", "Normal_Nucleoli",
+                           "Mitoses", "Class")
+#Regression with pertubation to imput values for the missing ones.
+set.seed(123)
+n <- rnorm(16, mean = pred.missing, sd = sd(pred.missing))
+n
+
+#Combining the predicted data together.
+P.reg <- cancer_data
+P.reg[missing.index,]$Bare_Nuclei <- as.integer(abs(n))
+P.reg[c(23,40,139,145),]
+```
+
+### Conclusion:
+
+From the accuracy calculated with and without the imputed data, it appears to be in the same range which doesn't give enough evidence that imputation was helpful.
+
+### Question 15.1
+
+*Describe a situation or problem from your job, everyday life, current events, etc., for which optimization would be appropriate. What data would you need?*
+
+A situation in which optimization would be appropriate is in a business analytics perspective such as banking: fraud detection. An algorithm can be used for detection and flagging of potential bank fraud. Depending on the banks stored data considering its high volume, it is extremely difficult for a person to manually detect any suspicious activity within a single account. Therefore, for this example, consider a persons account usually only spends \$3,000 in a month with their credit card but, this month, there is a \$30,000 charge on the credit card. The algorithm analyzes the pattern and alerts the bank. The course of action, or optimization approach, can recommend a course of action. The algorithm can range from cancelling the card to sending a text message to the account holders phone to authorize the transaction and call the bank to allow for a higher spending amount.

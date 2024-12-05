@@ -1,0 +1,85 @@
+---
+title: "Homework 4"
+author: "Anonymous"
+date: "2024-02-02"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Question 7.1
+
+*Describe a situation or problem from your job, everyday life, current events, etc., for which exponential smoothing would be appropriate. What data would you need? Would you expect the value of a (the first smoothing parameter) to be closer to 0 or 1, and why?*
+
+I currently work as a bartender at a chain-restaurant and am scheduled different times based on the days of the week. A situation where exponential smoothing would be appropriate is calculating the restaurant's gross sales to determine week by week which days are expected to be busy and how many employees should be scheduled to work. The data required to use exponential smoothing would be the gross sales from each day of the week for every week for one month. The initial actual value A_t can be the previous week of gross sales from another location then, the actual value should reflect (or be close to) the same numbers as another location with possibility of either more or less gross sales. I would expect the value of a to be closer to 0 than 1. A lower a value produces smoother fitted lines because they give more weight to past observations. I would like to make a equal to 0.2 or 0.4 to produce smoother lines.
+
+## Question 7.2
+
+```{r}
+temps <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\temps.txt",
+                    sep = "",
+                        header = TRUE)
+head(temps,2)
+library(ggplot2)
+library(TTR)
+library(forecast)
+library(openxlsx)
+
+#Converting the data into a long list containing the yearly data with temperatures for the four months
+#This prepares for the time series analysis.
+
+temps_list <- as.vector(unlist(temps[,2:21]))
+#temps_list
+
+plot(temps_list)
+
+#Time series data
+data_ts <- ts(temps_list, start = 1996, frequency = 123)
+#data_ts
+
+plot(data_ts)
+#Decomposing the data to understand its components.
+plot(decompose(data_ts))
+
+
+#The plot above shows there is seasonality in the data but 
+#there is no specific trend in the data.
+
+#The additive model is useful when the season avriation is releatively constant
+#over time. The multiplicative model is useful when the seasonal variation
+#increases over time. 
+#Therefore, I used the additive model for Holt Winter's
+
+hw <- HoltWinters(data_ts, alpha = NULL, beta = NULL, gamma = NULL,
+                  seasonal = 'additive')
+#Root Mean Square Error
+sqrt(hw$SSE)
+
+plot(hw)
+
+#Looking into the idividual components of the fitted data of Holt Winter's
+#results and taking the seasonality data to do CUSUM and see
+#if there is change in the temperature.
+
+plot(hw$fitted[,1])
+
+plot(hw$fitted[,2])
+
+plot(hw$fitted[,3])
+
+plot(hw$fitted[,4])
+
+head(hw$fitted[,4])
+
+#Exporting the seasonality data into a csv
+seasonality <- matrix(hw$fitted[,4], nrow = 123)
+write.csv(seasonality, file = "Seasonality.csv", fileEncoding = "UTF-16LE")
+
+
+```
+
+## In conclusion:
+
+(Please refer to my Seasonality excel file.)
+
+My analysis on the seasonality data using CUSUM, shows that I calculated the mu, standard deviation, C and T value. I tried different C and T values but, I decided to keep the values that covered the entire seasonality data set. That being said, the data did not give any concrete evidence that the summers in Atlanta lasted longer over the 20 years. It appears that after Sep 30th, 1997 it maintains longer summers but not much longer than Oct 7th, 2015. Thus, my findings don't have sufficient evidence to prove if the summers lasted longer over the years in Atlanta.

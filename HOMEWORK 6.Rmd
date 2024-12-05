@@ -1,0 +1,123 @@
+---
+title: "Homework 6"
+author: "Anonymous"
+date: "2024-02-21"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+## Question 9.1
+
+*Using the same crime data set uscrime.txt as in Question 8.2, apply
+Principal Component Analysis and then create a regression model using
+the first few principal components. Specify your new model in terms of
+the original variables (not the principal components), and compare its
+quality to that of your solution to Question 8.2. You can use the R
+function prcomp for PCA. (Note that to first scale the data, you can
+include scale. = TRUE to scale as part of the PCA function. Don’t forget
+that, to make a prediction for the new city, you’ll need to unscale the
+coefficients (i.e., do the scaling calculation in reverse)!)*
+
+```{r}
+library(ggbiplot)
+library(ggplot2)
+
+crime_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\uscrime.txt",
+                        header = TRUE)
+test <- data.frame(M = 14.0, So = 0, Ed = 10.0, Po1 = 12.0, Po2 = 15.5, LF = 0.640, 
+                   M.F = 94.0, Pop = 150, NW = 1.1, U1 = 0.120, U2 = 3.6, Wealth = 3200, 
+                   Ineq = 20.1, Prob = 0.04, Time = 39.0)
+
+#X is 15 predictors
+X <- crime_data[,1:15]
+
+
+#Calculating the principal components of the data
+#Scaled TRUE so each variable in the data are scaled to have a mean 
+#of 0 and a SD of 1
+PCA <- prcomp(X, scale = TRUE, center = TRUE)
+
+PCA
+
+summary(PCA)
+
+#From the summary of PCA, the cummulative variance PC 1 - 7 = 92.
+#If we need to cover up to 90% of the variablility in the data
+#Let's consider PC up to 7.
+
+#Let's visualize the principal components using Bi-Plot.
+ggbiplot(PCA, 
+       obs.scale = 1,
+       var.axes = TRUE,
+       var.scale = 1,
+      groups = crime_data$Crime,
+       circle = TRUE)
+
+#The closer the vectors the closer the correlation between them.
+#The plot shows NW, So, Ineq, M and Prob have positive correlation with 
+#PC1 as they are on the right side of 0. 
+#Therefore, those vectors on the PC1 axis have positive contribution on PC1
+
+
+#The scree plot visualizes the number of PC to use
+screeplot(PCA, main = "Scree Plot", type = c("lines"))
+
+#Now will build a regression model with 7 components
+new_crime_data <- as.data.frame(cbind(PCA$x[,1:7], crime_data$Crime))
+
+#Linear regression model with 7 components
+PCA_LM <- lm(V8~., data = new_crime_data)
+
+summary(PCA_LM)
+
+#The new data frame shows low R2 and adjusted R2 values as comapred to the last assignment.
+
+#Model coefficients
+PCA_LM_coefficients <- PCA$rotation[,1:7]%*%PCA_LM$coefficients[-1]
+
+#Converting standardized coefficients and intercept back into original variables
+SD <- sapply(crime_data[,1:15], sd)
+Mean <- sapply(crime_data[,1:15], mean)
+intercept <- PCA_LM$coefficients[1]
+
+alpha <- PCA_LM_coefficients/SD
+
+beta <- intercept - sum(PCA_LM_coefficients*Mean/SD)
+
+print(alpha)
+
+print(beta)
+
+#Prediction on the training data
+pred_train <- as.matrix(X)%*%alpha + beta
+
+#Prediction on the test data from Q 8.2
+pred_test <- as.matrix(test)%*%alpha + beta
+
+pred_test
+
+#This calculates R2
+R2 <- 1-sum((pred_train - crime_data$Crime)^2)/ sum((crime_data$Crime - mean(crime_data$Crime))^2)
+
+print(R2)
+
+```
+
+In conclusion:
+
+Using PCA explores a data set to understand which observations in the
+data are most similar to each other. The main goal is to explain most of
+the variables in a data set with fewer variables than the original data
+set. In this assignment, we were asked to apply PCA and then create a
+regression model and compare its quality to the solution found in
+question 8.2. In this model, my R^2^ is 69% but, in question 8.2 it was
+77% and with the prediction being 1230 in this model and 1304 in the
+last question, it seems that this model is might be over-fitted
+considering my results were lower. After using 7 principal components in
+the model, the quality did not improve even with 92% in variance
+compared to my findings in question 8.2. I could continue to add more PC
+however, that defeats the purpose of reducing the amount of dimensions.

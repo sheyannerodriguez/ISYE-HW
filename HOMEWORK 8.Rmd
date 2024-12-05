@@ -1,0 +1,236 @@
+---
+title: "Homework 8"
+author: "Anonymous"
+date: "2024-03-05"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Question 11.1
+
+Using the crime data set uscrime.txt from 8.2, 9.1, and 10.1, build a regression model using:
+
+1.  Stepwise regression
+
+2.  Lasso
+
+3.  Elastic net For Parts 2 and 3, remember to scale the data first - otherwise, the regression coefficients will be on different scales and the constraint won't have desired effect.
+
+For part 2 and 3, use the glmnet function in R.
+
+Notes on R:
+
+-   For the elastic net model, what we called Lambda in the videos, glmnet calls "alpha"; you can get a range of results by varying alpha from 1 (lasso) to 0 (ridge regression) [and, of course, other values of alpha in between].
+
+-   In a function call like glmnet (x, y, family = "gaussian", alpha = 1) the predictors x need to be in R's matrix format, rather than data frame format. You can convert a data frame to a matrix using as.matirix - for example, x \<- as.matrix(data[,1:n-1])
+
+-   Rather than specifying a value of T, glmnet returns models for a variety of values of T.
+
+    ### For practice, I decided to run both *forward selection* and *backward elimination* models for the data set and then proceeded with *Stepwise Regression*.
+
+```{r}
+
+crime_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\uscrime.txt",
+                        header = TRUE)
+
+#Performing Backward Elimination
+model_back <- lm(Crime~., data = crime_data)
+step(model_back,
+     direction = "backward")
+step(model_back, 
+     direction = "backward", trace = 0)
+
+#
+
+
+#Performing Forward Selection
+model_forward <- lm(Crime~1, data = crime_data)
+step(model_forward, 
+     scope = formula(lm(Crime~., data = crime_data)),
+     direction = "forward")
+
+```
+
+From Backward Elimination, the final factors are as follows:
+
+1.  M
+
+2.  Ed
+
+3.  Po1
+
+4.  M.F
+
+5.  U1
+
+6.  U2
+
+7.  Ineq
+
+8.  Prob
+
+And from Forward Selection the following final factors are as follows:
+
+1.  M
+
+2.  Ed
+
+3.  Po1
+
+4.  U2
+
+5.  Ineq
+
+6.  Prob
+
+### Part 1 Stepwise Regression Model:
+
+```{r}
+library(MASS)
+#Performing Stepwise Regression
+model_stepwise <- lm(Crime~., data = crime_data)
+step <- stepAIC(model_stepwise,
+     scope = list(lower = formula(lm(Crime~1, data = crime_data)),
+                  upper = formula(lm(Crime~., data = crime_data))),
+     direction = "both")
+summary(step)
+
+#The summary shows M.F and U1 are not significant based on the p-values
+#I will remove both and test a new model.
+
+new_model1 <- lm(Crime~ M + Ed + Po1 + U2 + Ineq + Prob, data = crime_data)
+summary(new_model1)
+```
+
+Using the stepAIC function in the glmnet library, I built a *Stepwise regression* model. Here the program ran the multiple models to determine the best one based on the stepAIC method.
+
+From running this, these were the factors that were determined to be the best factors by *Stepwise regression*:
+
+1.  M
+
+2.  Ed
+
+3.  Po1
+
+4.  M.F
+
+5.  U1
+
+6.  U2
+
+7.  Ineq
+
+8.  Prob
+
+Which shows that the Backward Elimination method has similiarity in factors given by the Stepwise Regression method.
+
+When looking at the summary of the model, it showed U1 and M.F were insignificant factors. Therefore I excluded them to test the model further. After I excluded the insignificant factors, which is the purpose of stepwise regression, to make the model simpler, It did not impact the adjusted R^2^ 's a whole lot. With 8 factors the adjusted R^2^ was 73% and the model with 6 factors had an adjusts R^2^ of 74%. So, the metrics for both models are close and keeping 8 factors is fine for the model.
+
+### Part 2 LASSO
+
+```{r}
+
+library(glmnet)
+
+set.seed(42)
+#Performing LASSO
+model_lasso <- cv.glmnet(x = as.matrix(crime_data[,-16]),
+                         y = as.matrix(crime_data[,16]),
+                         alpha = 1,
+                         nfolds = 8,
+                         nlambda = 20,
+                         type.measure = "mse",
+                         family = "gaussian",
+                         standardize = TRUE)
+model_lasso
+
+#Plotting LASSO model
+plot(model_lasso)
+
+#Finding Lambda minimum
+model_lasso$lambda.min
+
+cbind(model_lasso$lambda, model_lasso$cvm, model_lasso$nzero)
+
+coef(model_lasso, s = model_lasso$lambda.min)
+
+#Now using the above variables from the LASSO Regression results, I will
+#Use the new factors.
+
+model_lm <- lm( Crime~ M + So + Ed + Po1 + M.F + NW + U1 + U2 + Wealth + Ineq + Prob, data = crime_data)
+
+summary(model_lm)
+
+#Looking at the factors based on their p-values, I can remove So, M.F, NW, U1, and Wealth.
+
+new_lasso <- lm(Crime~ M + Ed + Po1 + U2 + Ineq + Prob, data = crime_data)
+
+summary(new_lasso)
+```
+
+After performing *Stepwise regression*, I performed *LASSO*and when using *LASSO*, it is essential to [scale]{.underline} the data. Therefore, a line is added to the model to *standardize* it since the *LASSO* method does not force some coefficients to 0 in order to simplify the mode. I used an alpha value of 1 for variable selection. The model showed 11 significant factors but, with further investigation, the p-values were used to determine insignificant factors that could be eliminated to build a final regression model. The final model revealed factors identical to the *Stepwise regression* model.
+
+### Part 3 Elastic Net
+
+```{r}
+
+#From the notes in the question, it claims we will get a range of results by
+#varying "alpha" from 1 (lasso) to 0 (ridge regression).
+#So, for Elastic net, I will try different values and see which model gives the best result.
+
+library(glmnet)
+
+alpha <- seq(0, 1, 10 ) #range between 0 and 1
+best <- list(a = NULL, mse = NULL)
+for (i in 1:length(alpha)) {
+  set.seed(42)
+  elastic <- cv.glmnet(x = as.matrix(crime_data[,-16]), #Cross-validation
+                       y = as.matrix(crime_data[,16]),
+                       alpha = alpha[i],
+                       nfolds = 10,
+                       type.measure = "mse",
+                       family = "gaussian")
+  best$a <- c(best$a, alpha[i])
+  best$mse <- c(best$mse, min(elastic$cvm))
+  
+ alpha[i] = elastic$glmnet.fit$dev.ratio[which(elastic$glmnet.fit$lambda
+                                                 == elastic$lambda.min)]
+}
+alpha[i]
+
+
+best_alpha <- alpha[i]
+
+index <- which(best$mse == min(best$mse))
+best_mse1 <- best$mse[index]
+
+cat("alpha:", best_alpha, "mse:", best_mse1) #results
+
+#Apply CV with best alpha to get lambda
+new_elastic1 <- cv.glmnet(x = as.matrix(crime_data[,-16]),
+                       y = as.matrix(crime_data[,16]),
+                       alpha = best_alpha,
+                       family = "gaussian")
+summary(new_elastic1)
+plot(new_elastic1)
+
+best_lambda <- new_elastic1$lambda.min
+cat(best_lambda)
+
+#Now we can fit model with the best alpha and lambda value
+elastic_model <- glmnet(x = as.matrix(crime_data[,-16]),
+                       y = as.matrix(crime_data[,16]),
+                       alpha = best_alpha,
+                       lambda = best_lambda,
+                       family = "gaussian")
+coef(elastic_model)
+
+
+best_elastic <- lm(Crime~ M + So + Ed + Po1 + LF + M.F + NW + U2 + Ineq + 
+                    Prob, data = crime_data)
+summary(best_elastic)
+
+```
+
+Here I used the Elastic net algorithm and set the alpha between 0 and 1 for variable selection. The model has more definitive selection than based on p values. The adjusted R^2^ gives a 71% which is close to my Stepwise regression adjusted R^2^ just more precise.

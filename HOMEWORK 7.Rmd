@@ -1,0 +1,350 @@
+---
+title: "Homework 7"
+author: "Anonymous"
+date: "2024-02-27"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Question 10.1
+
+*Using the same crime data set uscrime.txt as in Questions 8.2 and 9.1, find the best model you can using*
+
+*(a) a regression tree model, and*
+
+*(b) a random forest model.*
+
+*In R, you can use the tree package or the rpart package, and the randomForest package. For each model, describe one or two qualitative takeaways you get from analyzing the results (i.e., don’t just stop when you have a good model, [but interpret it too]{.underline}).*
+
+### Part a
+
+```{r}
+library(ggplot2)
+library(randomForest)
+library(tree)
+crime_data <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\uscrime.txt",
+                        header = TRUE)
+test <- data.frame(M = 14.0, So = 0, Ed = 10.0, Po1 = 12.0, Po2 = 15.5, LF = 0.640, 
+                   M.F = 94.0, Pop = 150, NW = 1.1, U1 = 0.120, U2 = 3.6, Wealth = 3200, 
+                   Ineq = 20.1, Prob = 0.04, Time = 39.0)
+
+tree_model <- tree(Crime~., data = crime_data)
+summary(tree_model)
+
+#Visulaization
+plot(tree_model)
+text(tree_model, pretty = 0)
+title(main = "Unpruned Regression Tree")
+
+#Prediction on the unpruned model
+pred_un <- predict(tree_model, crime_data[,1:15])
+
+#Calculating R2 for the unpruned model
+SSE <- sum((pred_un - crime_data[16])^2)
+SST <- sum((crime_data$Crime - mean(crime_data$Crime))^2)
+R2 <- 1 - SSE/SST
+
+#Classification trees allow the use of cross-validation to select a good 
+#prunning of the tree.
+set.seed(18)
+tree_cv = cv.tree(tree_model)
+summary(tree_cv)
+
+plot(tree_cv$size, tree_cv$dev, type = "b", 
+     xlab = "Tree Size", ylab = "CV-DEV")
+#The plot shows deviation which is a measurement of the errors from 1 to 7.
+#A tree size of 5 and 6 with close proximity of their deviation values show little error. 
+#Therefore, the unpruned model suggests overfitting. 
+#Now lets try to prune using tree sizes of 5 and 6 and see the R2.
+
+#Pruning the tree using a tree size of 6
+tree_prune_6 <- prune.tree(tree_model, best = 6)
+summary(tree_prune_6)
+
+#Prediction of tree
+pred_tree_6 <- predict(tree_prune_6, crime_data[,1:15])
+
+#Calculating R2 for the unpruned model
+SSE_cv <- sum((pred_tree_6 - crime_data[16])^2)
+R2_6 <- 1 - SSE_cv / SST
+
+#Cross-validation on tree
+set.seed(18)
+tree_cv_6 = cv.tree(tree_prune_6)
+summary(tree_cv_6)
+
+plot(tree_cv_6$size, tree_cv_6$dev, type = 'b',
+     xlab = "Tree Size", ylab = "CV-DEV")
+
+#For each tree will reflect its deviation
+
+tree_cv_6$size
+
+tree_cv_6$dev
+
+#Now lets try for a tree size of 5
+tree_prune_5 <- prune.tree(tree_model, best = 5)
+summary(tree_prune_5)
+
+#Prediction on tree size 5
+pred_tree_5 <- predict(tree_prune_5, crime_data[,1:15])
+
+#Calculating R2 for the unpruned model
+SSE_cv <- sum((pred_tree_5 - crime_data[16])^2)
+R2_5 <- 1 - SSE_cv / SST
+
+#Cross-validation on tree
+set.seed(18)
+tree_cv_5 = cv.tree(tree_prune_5)
+summary(tree_cv_5)
+
+plot(tree_cv_5$size, tree_cv_5$dev, type = "b",
+     xlab = "Tree Size", ylab = "CV-DEV")
+
+#For each tree will reflect its deviation
+
+tree_cv_5$size
+
+tree_cv_5$dev
+
+```
+
+I used a decision tree to evaluate the small data set. The decision tree was fitted to the full data set called un-pruned data set. The R^2^ for this model is 72%, close to what I found with a linear regression model in the previous assignment. I ran cross-validation on the un-pruned data set to spot overfitting. The CV process revealed overfitting which was expected in a small data set. Therefore, prunning was performed to create an optimal decision tree and the same process followed but, this time the R^2^ did not decrease with a smaller tree size and overfitting was still pronounced.
+
+### Part b
+
+```{r}
+#Random Forest model
+
+rf <- randomForest(Crime~., data = crime_data)
+summary(rf)
+
+print(rf)
+
+#Prediction on RF model
+pred_rf <- predict(rf)
+
+#Calculating R2 for the RF model
+SSE_rf <- sum((pred_rf - crime_data[16])^2)
+SST <- sum((crime_data$Crime - mean(crime_data$Crime))^2)
+R2_rf <- 1 - SSE_rf/SST
+R2_rf
+
+#CV on RF model and the R2
+rf_cv <- rfcv(trainx = crime_data[,1:15], trainy = crime_data$Crime, cv.fold = 10)
+print(rf_cv)
+
+plot(rf_cv$error)
+
+#Prediction using RF_CV model
+pred_rf_cv <- rf_cv$predicted[1]
+
+#Calculating R2 for RF_CV model
+SSE_rf_cv1 <- sum((pred_rf_cv - crime_data[16])^2)
+SST <- sum((crime_data$Crime - mean(crime_data$Crime))^2)
+R2_rf_cv <- 1 - SSE_rf_cv1/SST
+R2_rf_cv
+```
+
+In my findings, the random forest model deals with overfitting sufficiently better than the decision tree in Part a. This can be seen by the errors from the CV model which are close to the initial RF model. Also, the R2 value for the CV model is close to the initial model. Thus, it can be seen that the RF model is good in handling overfitting.
+
+## Question 10.2
+
+*Describe a situation or problem from your job, everyday life, current events, etc., for which a logistic regression model would be appropriate. List some (up to 5) predictors that you might use.*
+
+Researchers can use predictors that determine the probability of a student getting accepted into a particular university. The relationship between the predictors and the probability of getting accepted is when a logistic regression model is appropriate. The predictors include:
+
+1.  GPA
+2.  ACT score
+3.  SAT score
+4.  Number of AP classes
+5.  Extra curricular activities/ community service hours
+
+The different predictors and the response is either 1 (will be accepted) and 0 (will not be accepted). So, any student can go through the model and its output will either be 1 or 0.
+
+## Question 10.3
+
+#### Part I
+
+*Using the GermanCredit data set germancredit.txt use logistic regression to find a good predictive model for whether credit applicants are good credit risks or not. Show your model (factors used and their coefficients), the software output, and the quality of fit. You can use the glm function in R. To get a logistic regression (logit) model on data where the response is either zero or one, use family=binomial(link=”logit”) in your glm function call.*
+
+```{r}
+
+library(reshape2)
+library(dummy)
+library(caret)
+library(MASS)
+library(car)
+library(e1071)
+library(pROC)
+
+    german_credit <- read.table(file= "C:\\Users\\sheya\\OneDrive\\Desktop\\germancredit.txt",
+                            header = TRUE)
+    summary(german_credit)
+
+    #Renaming the columns as per the description in the document
+    newnames <- c('Checking account Status', 
+                  'Duration in month', 'Credit history', 
+                  'Purpose', 'Credit amount', 
+                  'Savings account/bonds','Employment since',
+                  'Installment rate in % disposable income',
+                  'Status& Sex', 'Other debtors / guarantors',
+                  'Residense since', 'Property', 'Age in years',
+                  'Other installment plans', 'Housing', 
+                  'Number of existing credits at this bank', 'Job',
+                  'People being liable to provide maintenance for',
+                  'Telephone', 'foreign worker', 'Customer_Status')
+    colnames(german_credit) <- newnames
+
+    #The document shows there are 7 numeric and 13 categorical predictors
+    #I will group the numerical variables to visualize the data
+
+    num_val <- scale(german_credit[,c(2,5,8,11,13,16,18)])
+    num_val <- melt(num_val)
+
+    #Box plot to view the outliers
+    ggplot(num_val, aes(x = Var2, y = value)) + geom_boxplot() +
+      scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 10))
+
+    #According to the boxplot, "Credit amount" reveal a significant number of outliers
+    #However, I cannot remove them for this analysis.
+
+    #The next step so to create dummy variables for the categorical variables 
+    categorical <- german_credit[,-c(2,5,8,11,13,16,18,21)]
+    numerical <- german_credit[, c(2,5,8,11,13,16,18,21)]
+
+    cat_dummy <- dummy(categorical)
+
+    #Now I must drop one variable from each category to avoid multi-collinearity.
+
+    cat_dummy_new <- cat_dummy[,-c(1,5,10,20,25,30,34,37,41,44,47,51,53)]
+
+    #Combining the numerical and dummy data together
+    new_data <- cbind(cat_dummy_new, numerical)
+    new_data$Customer_Status <- ifelse(new_data$Customer_Status == 1, 1, 0)
+
+    #Response to 1 and 0, 1 = Good and 0 = Bad
+
+    table(new_data$Customer_Status)
+
+    set.seed(42)
+    #Create Data Partition
+    germ_credit_split <- createDataPartition(y = new_data$Customer_Status, 
+                                             p = 0.7, times = 1, list = FALSE)
+    head(germ_credit_split,6)
+
+    #Training data
+    train_data <- new_data[germ_credit_split,]
+
+    #Testing data
+    test_data <- new_data[-germ_credit_split,]
+
+    #Initial model with all variables
+    initial_model <- glm(train_data$Customer_Status~., 
+                         family = binomial(link = "logit"), 
+                         data = train_data)
+
+    summary(initial_model)
+
+    #From the summary, there are plenty non-significant p-values.
+    #I will build a new model with only significant variables and a threshold of 0.05.
+
+    new_model <- glm(train_data$Customer_Status ~ Checking.account.Status_A13 +
+                       Checking.account.Status_A14 + Credit.history_A34 +
+                       Purpose_A41 + Purpose_A42 + Purpose_A43 + 
+                       Savings.account.bonds_A62 + Savings.account.bonds_A65 +
+                       Other.debtors...guarantors_A102 + foreign.worker_A202 +
+                       `Duration in month`+ `Credit amount` + 
+                       `Installment rate in % disposable income`, 
+                     family = binomial(link = "logit"), data = train_data)
+
+    summary(new_model)
+
+    #This new model is my final model as most of the variables are significant.
+    #I will need to change the test data with the same variables as the ones in the new model
+    #for predictions
+
+    test_new<-test_data[,c('Checking.account.Status_A13', 
+                         'Checking.account.Status_A14','Credit.history_A34',
+                         'Purpose_A41','Purpose_A42','Purpose_A43',
+                         'Savings.account.bonds_A62','Savings.account.bonds_A65',
+                         'Other.debtors...guarantors_A102',
+                         'Other.installment.plans_A143',
+                         'foreign.worker_A202','Duration in month','Credit amount',
+                         'Installment rate in % disposable income','Customer_Status')]
+
+    #Accuracy defines how effective the model is in characterizing bad and good status.
+
+    #Calculate the predicted probabilities for the test data using 0.5 as threshold
+    predicted <- predict(new_model, test_new, type = "response")
+    predicted_int0.5 <- as.integer(predicted > 0.5)
+
+    table <- table(predicted_int0.5, test_new$Customer_Status)
+    confusion <- confusionMatrix(table, positive = '1')
+    confusion
+
+    #Accuracy predicted with 0.5 threshold is 75%
+
+    #I would like to try 0.6 as a threshold to see the accuracy
+    predicted_int0.6 <- as.integer(predicted > 0.6)
+    table2 <- table(predicted_int0.6, test_new$Customer_Status)
+    confusion2 <- confusionMatrix(table2)
+    confusion2
+
+    #Accuracy predicted with 0.6 threshold is 71%
+    
+    #ROC
+    roc_curve <- roc(test_new$Customer_Status, predicted)
+    plot(roc_curve)
+
+    roc_curve$auc
+    
+    #Therefore, the accuracy is best between 0.5 and 0.6 thresholds since the ROC curve 
+    #reveals the AUC measuring separability. 
+    #Higher the AUC, the better the model is at predicting 0 classes as 0 
+    #and 1 classes as 1.
+```
+
+#### Part II
+
+*Because the model gives a result between 0 and 1, it requires setting a threshold probability to separate between “good” and “bad” answers. In this data set, they estimate that incorrectly identifying a bad customer as good, is 5 times worse than incorrectly classifying a good customer as bad. Determine a good threshold probability based on your model.*
+
+```{r}
+#This part asks for the number of loans to false positives are reduced. 
+#Therefore, the sensitivity needs to be high
+#This is accomplished by testing different thresholds and seeing where the 
+#sensitivity is highest
+
+#Previously I tested a threshold of 0.6
+predicted_int0.6 <- as.integer(predicted > 0.6)
+table2 <- table(predicted_int0.6, test_new$Customer_Status)
+    confusion2 <- confusionMatrix(table2, positive = '1')
+    confusion2
+    
+#The sensitivity predicted 79% with a threshold of 0.6
+
+#Threshold of 0.4
+predicted_int0.4 <- as.integer(predicted > 0.4)
+table3 <- table(predicted_int0.4, test_new$Customer_Status)
+confusion3 <- confusionMatrix(table3, positive = '1')
+confusion3
+
+#The sensitivity predicted 92% with a threshold of 0.4
+
+#threshold of 0.2
+predicted_int0.2 <- as.integer(predicted > 0.2)
+table4 <- table(predicted_int0.2, test_new$Customer_Status)
+confusion4 <- confusionMatrix(table4, positive = '1')
+confusion4
+#The sensitivity predicted 98% with a threshold of 0.2
+
+#Threshold 0.1
+predicted_int0.1 <- as.integer(predicted > 0.1)
+table5 <- table(predicted_int0.1, test_new$Customer_Status)
+confusion5 <- confusionMatrix(table5, positive = '1')
+confusion5
+#The sensitivity predicted 98% with a threshold of 0.1
+```
+
+Based on my findings, the threshold increases the sensitivity as the threshold lowers. However, there was no significant change in sensitivity when the threshold was tested below 0.2. In conclusion, the threshold of 0.2 is a good probability based on the model performed.

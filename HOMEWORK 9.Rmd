@@ -1,0 +1,58 @@
+---
+title: "Homework 9"
+author: "Anonymous"
+date: "2024-03-07"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Question 12.1
+
+*Describe a situation or problem from your job, everyday life, current events, etc., for which a design of experiments approach would be appropriate.*
+
+I am currently trying to gain weight to achieve my body shape goals. A DOE approach works excellent in finding the factors that will help me achieve my goal. Whether that involves a higher calorie intake or a supplement (e.g. creatine) to allow for weight gain. A DOE approach also allows for further testing of the interactions between factors that contribute to my target goal.
+
+### Question 12.2
+
+*To determine the value of 10 different yes/ no features to the market value of a house (large yard, solar roof, etc.), a real estate agent plans to survey 50 potential buyers, showing a fictitious house with different combinations of features. To reduce the survey size, the agents wants to show just 16 fictitious houses. Use R's Fr F2 function (in the Fr F2 package) to find a fractional factorial design for this experiment: what set of features should each of the 16 fictitious houses have? Note: the output of Fr F2 is "1" (include) or "-1" (don't include) for each feature.*
+
+```{r}
+library(FrF2)
+
+set.seed(42)
+design <- FrF2(nfactors = 10, nruns = 16,
+               factor.names = c('Large front yard', 'Modern home',
+                                'Kitchen island','Guest bedroom', 'Schools nearby',
+                                'Supermarket nearby', 'A den', 
+                                'Half Bathrooms', 'Backyard', 
+                                'Garage'))
+design
+
+```
+
+The agent has 16 different houses with 10 different features that I chose: a large front yard, kitchen island, guest bedroom, modern home, schools nearby, supermarkets nearby, a den, half bathrooms, backyard, and a garage.
+
+### Question 13.1
+
+*For each of the following distributions, give an example of data that you would expect to follow this distribution (besides the example already discussed in class).*
+
+-   *Binomial*
+
+-   *Geometric*
+
+-   *Poisson*
+
+-   *Exponential*
+
+-   *Weibull*
+
+#### Answer 13.1:
+
+A probability distribution is a statistical function that describes all the likelihood of obtaining all possible values that a random variable can take within a given range. This shows how the probabilities of the events are distributed over different values of the random variable. When all values of a random variable are aligned on a graph, the values of its probabilities generate a shape. The probability distribution has several properties such as expected value and variance that can be measured. The probability of a desired outcome is always greater than 0 and the sum of all probabilities of all the events is equal to 1.
+
+1.  Binomial: Say you play in a basketball tournament with a total of 5 games. What is the probability of your team winning 3 of those games? There are only two possible outcomes: your team wins or does not win.
+2.  Geometric: Stephen Curry is an all-star NBA player who is known for making 3 point shots consistently with a low rate of missed shots. Testing how many 3-point shots he makes before he misses is a geometric distribution.
+3.  Poisson: The number of text messages in a day can be a poisson distribution example.
+4.  Exponential: In the above example the time between two text messages can be an exponential distribution example.
+5.  Weibull: The lifetimes of dental implants can be a weibull distribution example.
